@@ -1,4 +1,12 @@
 android {
+    signingConfigs {
+        debug {
+            storeFile file('D:\\other\\IntelliJ IDEA Community Edition 2022.3.2\\jbr\\release')
+            storePassword '2055146'
+            keyAlias 'key0'
+            keyPassword '51235123'
+        }
+    }
     buildToolsVersion "33.0.2"
     compileSdkVersion 33
     sourceSets {
