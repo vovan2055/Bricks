@@ -7,7 +7,6 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageTextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.ParticleEffectActor;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -27,6 +26,7 @@ public class Menu extends ScreenAdapter {
         stage = new Stage();
 
         if (saveFile.exists()) highScore = Integer.parseInt(saveFile.readString());
+        else highScore = 0;
 
         ImageTextButton.ImageTextButtonStyle s = new ImageTextButton.ImageTextButtonStyle();
         s.font = font;

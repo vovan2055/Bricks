@@ -6,18 +6,16 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.NinePatch;
-import com.badlogic.gdx.graphics.g2d.ParticleEffect;
-import com.badlogic.gdx.graphics.g2d.ParticleEmitter;
+import com.badlogic.gdx.graphics.g2d.ParticleEffectPool;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.*;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageTextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.NinePatchDrawable;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
@@ -26,7 +24,7 @@ import com.badlogic.gdx.utils.Timer;
 
 import java.util.Locale;
 
-import  static com.vovangames.bricks.Main.*;
+import static com.vovangames.bricks.Main.*;
 
 public class Bricks extends ScreenAdapter {
 
@@ -61,6 +59,8 @@ public class Bricks extends ScreenAdapter {
 	ImageTextButton menuButton;
 	Label pauseLabel, scoreLabel;
 
+	ParticleEffectPool bouncePool, breakPool;
+
 	@Override
 	public void show() {
 
@@ -77,6 +77,10 @@ public class Bricks extends ScreenAdapter {
 		ballDirection.setToRandomDirection().nor().scl(ballSpeed);
 
 		setupGUI();
+		trail.reset();
+
+		bouncePool = new ParticleEffectPool(bounce, 16, 48);
+		breakPool = new ParticleEffectPool(brickBreak, 16, 48);
 
 		new Timer().scheduleTask(new Timer.Task() {
 			@Override
@@ -175,6 +179,13 @@ public class Bricks extends ScreenAdapter {
 			batch.draw(brickTexture, r.x, r.y, r.width, r.height);
 
 		}
+		for (ParticleEffectPool.PooledEffect e : effects) {
+			e.draw(batch, delta);
+			if (e.isComplete()) {
+				effects.removeValue(e, true);
+				e.free();
+			}
+		}
 		trail.draw(batch, delta);
 		burst.draw(batch, delta);
 		brickDrawable.draw(batch, platform.x, platform.y, platform.width, platform.height);
@@ -204,31 +215,39 @@ public class Bricks extends ScreenAdapter {
 		if (ball.x < ball.radius || ball.x > Gdx.graphics.getWidth() - ball.radius) {
 			ballDirection.x = -ballDirection.x;
 			ball.x = MathUtils.clamp(ball.x, ball.radius, Gdx.graphics.getWidth() - ball.radius);
+			ParticleEffectPool.PooledEffect e = bouncePool.obtain();
+			e.setPosition(ball.x, ball.y);
+			effects.add(e);
+			bounceSound.play(0.1f);
 		}
 		if (ball.y - 1 > Gdx.graphics.getHeight() - ball.radius) {
 			ballDirection.y = -ballDirection.y;
 			ball.y = MathUtils.clamp(ball.y, ball.radius, Gdx.graphics.getHeight() - ball.radius);
+			ParticleEffectPool.PooledEffect e = bouncePool.obtain();
+			e.setPosition(ball.x, ball.y);
+			effects.add(e);
+			bounceSound.play(0.1f);
 		}
 		if (Intersector.overlaps(ball, platform)) {
 			ball.y = platformY + platform.height + ball.radius;
 			ballDirection.y = -ballDirection.y;
+			ParticleEffectPool.PooledEffect e = bouncePool.obtain();
+			e.setPosition(ball.x, ball.y);
+			effects.add(e);
+			bounceSound.play(0.1f);
 		}
 		if (ball.y < platformY) {
-			explosion.play();
-			ballDirection.setZero();
-			trail.setDuration(0);
-			burst.start();
-			inGame = false;
-			stage.addActor(endDialog);
-			if (score > highScore) saveFile.writeString(String.valueOf(score), false);
-			scoreLabel.setText("[GREEN]" + locales.get("game.score") + ": []" + score);
+			endGame(true);
 			return;
 		}
 
 		for (Rectangle r : bricks) {
 			if (!Intersector.overlaps(ball, r)) continue;
-			hit.play();
+			hit.play(0.2f);
 			bricks.removeValue(r, true);
+			ParticleEffectPool.PooledEffect e = breakPool.obtain();
+			e.setPosition(r.x + r.width / 2, r.y + r.height / 2);
+			effects.add(e);
 			ballDirection.nor().scl(ballSpeed += 2.5f);
 			score++;
 			if (ball.x <= r.x + r.width && ball.x >= r.x) {
@@ -241,7 +260,7 @@ public class Bricks extends ScreenAdapter {
 		}
 
 		if (bricks.isEmpty()) {
-			inGame =  false;
+			endGame(false);
 			return;
 		}
 
@@ -249,6 +268,30 @@ public class Bricks extends ScreenAdapter {
 		ball.y += ballDirection.y * Gdx.graphics.getDeltaTime();
 		trail.setPosition(ball.x, ball.y);
 		burst.setPosition(ball.x, ball.y);
+	}
+
+	private void endGame(boolean failed) {
+		if (failed) {
+			explosion.play(0.2f);
+			trail.reset();
+			burst.start();
+		}
+		ballDirection.setZero();
+
+		inGame = false;
+
+
+		if (score > highScore) {
+			saveFile.writeString(String.valueOf(score), false);
+		}
+		new Timer().scheduleTask(new Timer.Task() {
+			@Override
+			public void run() {
+				stage.addActor(endDialog);
+			}
+		}, 0.8f);
+		endDialog.addAction(Actions.color(Color.RED));
+		scoreLabel.setText("[GREEN]" + locales.get("game.score") + ": [" + (score > highScore ? "YELLOW" : "WHITE") + "]" + score);
 	}
 
 	@Override

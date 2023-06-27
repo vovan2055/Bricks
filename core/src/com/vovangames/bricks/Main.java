@@ -6,35 +6,29 @@ import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.NinePatch;
-import com.badlogic.gdx.graphics.g2d.ParticleEffect;
-import com.badlogic.gdx.graphics.g2d.ParticleEmitter;
+import com.badlogic.gdx.graphics.g2d.*;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.scenes.scene2d.utils.NinePatchDrawable;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.I18NBundle;
-import com.badlogic.gdx.utils.ObjectMap;
-import com.badlogic.gdx.utils.PropertiesUtils;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.Reader;
 
 public class Main extends Game {
 
     static Texture brickTexture, buttonTexture;
     static NinePatchDrawable brickDrawable, buttonDrawable;
     static BitmapFont font;
-    static ParticleEffect space, bounce, burst, trail;
+    static ParticleEffect space, bounce, burst, trail, brickBreak, congrats;
 
     static Sound hit;
     static Sound explosion;
+    static Sound bounceSound;
 
     static Main instance;
 
     static I18NBundle locales;
     static FileHandle saveFile;
     static int highScore = 0;
+    static Array<ParticleEffectPool.PooledEffect> effects = new Array<>();
 
     @Override
     public void create() {
@@ -50,8 +44,9 @@ public class Main extends Game {
         buttonTexture = new Texture("button.png");
         brickDrawable = new NinePatchDrawable(new NinePatch(brickTexture, 2, 2, 2, 2));
 
-        hit = Gdx.audio.newSound(Gdx.files.internal("hit.wav"));
+        hit = Gdx.audio.newSound(Gdx.files.internal("brickbreak.wav"));
         explosion = Gdx.audio.newSound(Gdx.files.internal("explosion.wav"));
+        bounceSound = Gdx.audio.newSound(Gdx.files.internal("bounce.wav"));
 
         NinePatch patch = new NinePatch(buttonTexture, 14, 14, 14, 14);
         patch.setLeftWidth(50);
@@ -71,6 +66,15 @@ public class Main extends Game {
 
         burst = new ParticleEffect();
         burst.load(Gdx.files.internal("particles/explosion"), Gdx.files.internal("particles/"));
+
+        bounce = new ParticleEffect();
+        bounce.load(Gdx.files.internal("particles/bounce"), Gdx.files.internal("particles/"));
+
+        congrats = new ParticleEffect();
+        congrats.load(Gdx.files.internal("particles/congrats"), Gdx.files.internal("particles/"));
+
+        brickBreak = new ParticleEffect();
+        brickBreak.load(Gdx.files.internal("particles/brickbreak"), Gdx.files.internal("particles/"));
 
         setScreen(new Menu());
     }
